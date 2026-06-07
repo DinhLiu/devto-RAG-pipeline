@@ -1,109 +1,209 @@
-# 🤖 RAG Simple Pipeline
+# Dev.to RAG Pipeline
 
-> A complete Retrieval-Augmented Generation (RAG) system built from scratch using **Qdrant**, **Google Gemini**, and data crawled from **Dev.to**.
+A compact Retrieval-Augmented Generation pipeline for collecting Dev.to articles, chunking them, embedding the chunks, storing them in Qdrant, and querying them through either semantic search or Gemini.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Python](https://img.shields.io/badge/Python-3.8%2B-blue)](https://www.python.org/)
-[![Qdrant](https://img.shields.io/badge/Vector%20DB-Qdrant-red)](https://qdrant.tech/)
-[![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini-green)](https://ai.google.dev/)
+## What It Does
 
-## 📖 Overview
+- Fetches Dev.to articles by tag.
+- Converts article HTML to Markdown.
+- Splits article content into searchable chunks.
+- Creates embeddings with `sentence-transformers/all-MiniLM-L6-v2`.
+- Stores vectors and metadata in Qdrant.
+- Supports basic semantic search from Qdrant.
+- Supports Gemini-powered answers using retrieved context.
 
-This project demonstrates how to build an end-to-end RAG pipeline. It automatically collects technical articles from [Dev.to](https://dev.to), processes the text, stores it in a Vector Database (Qdrant), and uses a Large Language Model (Google Gemini 1.5 Flash) to answer user questions based on the collected knowledge.
+## Requirements
 
-### ✨ Key Features
+- Python 3.8+
+- Docker or Docker Desktop
+- A Gemini API key, only if you want to use `src.search_gemini`
 
-* **🕷️ Automated Crawler:** Fetches articles and tags directly from Dev.to.
-* **🧹 Data Processing:** Cleans and chunks raw text for optimal embedding.
-* **🧠 Vector Embeddings:** Uses `sentence-transformers/all-MiniLM-L6-v2` for efficient semantic search.
-* **💾 Qdrant Integration:** Runs a local Qdrant instance via Docker for vector storage.
-* **🤖 AI Assistant:** Integrates the new **Google GenAI SDK** to generate human-like answers using Gemini.
-* **🔄 Idempotency:** Prevents duplicate data ingestion using UUID generation.
+## Setup
 
----
+Create and activate a virtual environment:
 
-## 🛠️ Prerequisites
-
-Before you begin, ensure you have the following installed:
-
-* **Python 3.8+**
-* **Docker Desktop** (Required to run Qdrant)
-* **Google Gemini API Key** (Get it for free at [Google AI Studio](https://aistudio.google.com/))
-
----
-
-## 🚀 Installation & Setup
-
-### 1. Clone the Repository
-```bash
-git clone [https://github.com/DinhLiu/RAG-simple-pipeline.git](https://github.com/DinhLiu/RAG-simple-pipeline.git)
-cd RAG-simple-pipeline
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
 ```
-### 2. Setup environment and Install dependencies
-```bash
-python -m venv venv
-venv/Scripts/Activate #Window
+
+Install dependencies:
+
+```powershell
 pip install -r requirements.txt
 ```
-### 3. Create your `.env` file and add your Goodle Gemini API Key
-```bash
+
+Create a `.env` file for Gemini search:
+
+```text
 GEMINI_API_KEY=YOUR_KEY
 ```
-### 4. Run `tag_crawler.py` to get list of available tag in `tag_list.txt`
-```
-python -m tag_crawler
-```
-### 5. Start your Qdrant Database
-Use Docker Compose to start the local vector database.
-```
+
+Start Qdrant:
+
+```powershell
 docker compose up -d
 ```
-You can verify it's running by visiting: http://localhost:6333/dashboard
 
-## 🏃‍♂️ Usage Guide
-### 1. Get tag list
-You can get a file of available tag list by running `tag_crawler.py`
-```
-python -m tag_crawler
-```
-### 2. Choose your own domain's tag and set limit in `data_controller.py`
-```
-run_pipeline(tag="programming", limit=400)
-```
-Or you can create a looo through all available tags to get variety articles' domain
-### 3. Run the search engine
-If you have `GEMINI_API_KEY`, you can use it to run `gemini_se.py`, which use **gemini-2.5-flash** to answer your question base on the data saved in **Qdrant**
-```
-python -m gemini_se
-```
-or else, you can run the basic search engine
-```
-python -m basic_se
+Qdrant dashboard:
+
+```text
+http://localhost:6333/dashboard
 ```
 
-## 📂 Project Structure
+## Quick Start
+
+Fetch articles, process chunks, and upload vectors to Qdrant:
+
+```powershell
+python -m scripts.pipeline --tag programming --limit 100
 ```
-RAG-simple-pipeline/
-│
-├── processed_data/      # Contains cleaned and chunked data (JSON)
-├── qdrant_storage/      # Persistent storage for Qdrant (Managed by Docker)
-├── raw_data/            # Contains raw articles fetched from Dev.to
-│
-├── src/                 # Core logic modules
-│   ├── process_data.py  # Logic for cleaning and chunking text
-│   ├── raw_data.py      # Crawler script to fetch articles (formerly crawler.py)
-│   └── vectorize_db.py  # Logic for embedding and uploading to Qdrant
-│
-├── basic_se.py          # Basic Search Engine
-├── data_controller.py   # Helper script for data management
-├── docker-compose.yaml  # Docker configuration for Qdrant service
-├── gemini_se.py         # Main AI Search Engine (RAG with Gemini)
-├── tag_crawler.py       # Script to fetch tags from Dev.to
-├── tag_list.txt         # List of tags to crawl
-│
-├── .env                 # Environment variables (API Keys - Keep secret!)
-├── .gitignore           # Git ignore rules
-├── LICENSE              # License file
-├── readme.md            # Project documentation
-└── requirements.txt     # Python dependencies
+
+Run basic semantic search:
+
+```powershell
+python -m src.search_basic --query "What is RAG?" --limit 5
 ```
+
+Run Gemini RAG search:
+
+```powershell
+python -m src.search_gemini --query "What is RAG?" --limit 5 --model gemini-2.5-flash
+```
+
+## Commands
+
+### Pipeline
+
+Run the full pipeline:
+
+```powershell
+python -m scripts.pipeline --tag programming --limit 100
+```
+
+Use existing raw data and regenerate processed chunks plus Qdrant vectors:
+
+```powershell
+python -m scripts.pipeline --skip-fetch
+```
+
+Use existing processed chunks and only upload vectors to Qdrant:
+
+```powershell
+python -m scripts.pipeline --skip-fetch --skip-process
+```
+
+Fetch and process articles without uploading vectors:
+
+```powershell
+python -m scripts.pipeline --tag python --limit 50 --skip-vectorize
+```
+
+Arguments:
+
+```text
+python -m scripts.pipeline [--tag TAG] [--limit LIMIT] [--skip-fetch] [--skip-process] [--skip-vectorize]
+```
+
+### Tag Crawler
+
+Fetch Dev.to tags into the default tag file:
+
+```powershell
+python -m scripts.tag_crawler
+```
+
+Write tags to a custom file:
+
+```powershell
+python -m scripts.tag_crawler --output data/tags/devto_tags.txt
+```
+
+Arguments:
+
+```text
+python -m scripts.tag_crawler [--output PATH]
+```
+
+### Basic Search
+
+Start interactive search:
+
+```powershell
+python -m src.search_basic --limit 5
+```
+
+Run one query and exit:
+
+```powershell
+python -m src.search_basic --query "What is RAG?" --limit 5
+```
+
+Arguments:
+
+```text
+python -m src.search_basic [--limit LIMIT] [--query QUERY]
+```
+
+### Gemini Search
+
+Start interactive Gemini search:
+
+```powershell
+python -m src.search_gemini --limit 5
+```
+
+Run one Gemini query and exit:
+
+```powershell
+python -m src.search_gemini --query "What is RAG?" --limit 5 --model gemini-2.5-flash
+```
+
+Arguments:
+
+```text
+python -m src.search_gemini [--limit LIMIT] [--query QUERY] [--model MODEL]
+```
+
+## Project Structure
+
+```text
+devto-RAG-pipeline/
+|-- data/
+|   |-- processed/          # Generated chunk JSON files
+|   |-- raw/                # Generated raw article JSON files
+|   `-- tags/               # Generated tag list files
+|-- qdrant_storage/         # Qdrant persistent storage
+|-- scripts/
+|   |-- pipeline.py         # Pipeline CLI entrypoint
+|   `-- tag_crawler.py      # Dev.to tag crawler CLI
+|-- src/
+|   |-- config.py           # Shared paths and service settings
+|   |-- process_data.py     # Chunking logic
+|   |-- raw_data.py         # Article fetching logic
+|   |-- search_basic.py     # Basic Qdrant search CLI
+|   |-- search_gemini.py    # Gemini RAG search CLI
+|   `-- vectorize_db.py     # Embedding and Qdrant upload logic
+|-- docker-compose.yaml
+|-- requirements.txt
+`-- readme.md
+```
+
+## Runtime Paths
+
+Runtime paths are centralized in `src/config.py`:
+
+```text
+data/raw/raw_data.json
+data/processed/processed_chunks.json
+data/tags/tag_list.txt
+```
+
+The generated data directories are ignored by Git.
+
+## Notes
+
+- Run commands from the repository root.
+- Start Qdrant before running vector upload or search commands.
+- Large vector uploads are batched before sending to Qdrant to avoid oversized HTTP payloads.
+- Gemini search requires `GEMINI_API_KEY` in `.env`.

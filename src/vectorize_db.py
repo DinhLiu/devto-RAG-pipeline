@@ -4,10 +4,21 @@ from qdrant_client.models import Distance, VectorParams, PointStruct
 from sentence_transformers import SentenceTransformer
 import uuid
 
-INPUT_FILE = '../processed_data/processed_chunks.json'
-COLLECTION_NAME = "devto_articles"
-QDRANT_URL = "http://localhost:6333"
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+from src.config import COLLECTION_NAME, EMBEDDING_MODEL, PROCESSED_CHUNKS_FILE, QDRANT_URL
+
+BATCH_SIZE = 64
+
+
+def upsert_batch(client, points, uploaded_count, total_count):
+    if not points:
+        return uploaded_count
+
+    client.upsert(collection_name=COLLECTION_NAME, points=points)
+    uploaded_count += len(points)
+    print(f'Uploaded {uploaded_count}/{total_count} chunks')
+    return uploaded_count
+
+
 def load_to_qdrant():
 
     # Initialyze Model and Client
@@ -28,15 +39,16 @@ def load_to_qdrant():
         print(f"Collection {COLLECTION_NAME} has already been exist")
 
     try:
-        with open(INPUT_FILE, 'r', encoding='utf-8') as file:
+        with open(PROCESSED_CHUNKS_FILE, 'r', encoding='utf-8') as file:
             chunks = json.load(file)
     except FileNotFoundError:
-        print(f'Cannot find file {INPUT_FILE}')
+        print(f'Cannot find file {PROCESSED_CHUNKS_FILE}')
         return
     
-    print(f"Start addin {len(chunks)} chunks into database...")
+    print(f"Start adding {len(chunks)} chunks into database...")
 
     points = []
+    uploaded_count = 0
 
     for idx, chunk in enumerate(chunks):
         text = chunk['text']
@@ -50,15 +62,17 @@ def load_to_qdrant():
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f"{article_id}_{idx}"))
 
         # Payload
-        payload = metadata
+        payload = dict(metadata)
         payload['text'] = text
         payload['article_id'] = article_id
 
         points.append(PointStruct(id=point_id, vector=vector, payload=payload))
 
-    if points:
-        client.upsert(collection_name=COLLECTION_NAME, points=points)
-        print(f'Uploaded {len(chunks)}/{len(chunks)} chunks')
+        if len(points) >= BATCH_SIZE:
+            uploaded_count = upsert_batch(client, points, uploaded_count, len(chunks))
+            points = []
+
+    uploaded_count = upsert_batch(client, points, uploaded_count, len(chunks))
 
     print(f"Vectorize done")
 

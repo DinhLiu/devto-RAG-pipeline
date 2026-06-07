@@ -1,18 +1,16 @@
 import json
-import os
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
-INPUT_FILE = "../raw_data/raw_data.json"
-OUTPUT_FOLDER = '../processed_data'
-OUTPUT_FILE = f'{OUTPUT_FOLDER}/processed_chunks.json'
-os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+from src.config import PROCESSED_CHUNKS_FILE, PROCESSED_DATA_DIR, RAW_DATA_FILE
+
+PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 def process_chunks():
-    if not os.path.exists(INPUT_FILE):
-        print(f"Cannot open {INPUT_FILE} to process chunks")
+    if not RAW_DATA_FILE.exists():
+        print(f"Cannot open {RAW_DATA_FILE} to process chunks")
         return
 
-    with open(INPUT_FILE, 'r', encoding='utf-8') as file:
+    with open(RAW_DATA_FILE, 'r', encoding='utf-8') as file:
         articles = json.load(file)
 
     print(f"Processing {len(articles)} articles...")
@@ -35,18 +33,19 @@ def process_chunks():
         chunks = text_splitter.create_documents([markdown_content])
 
         for chunk in chunks:
+            metadata = dict(article['metadata'])
+            metadata['chunk_len'] = len(chunk.page_content)
+
             chunk_record = {
                 "text": chunk.page_content,
-                "metadata": article['metadata'],
+                "metadata": metadata,
                 "article_id": article['id']
             }
 
-            chunk_record['metadata']['chunk_len'] = len(chunk.page_content)
-
             all_chunks.append(chunk_record)
 
-        with open(OUTPUT_FILE, 'w', encoding='utf-8') as file:
-            json.dump(all_chunks, file, ensure_ascii=False, indent=2)
+    with open(PROCESSED_CHUNKS_FILE, 'w', encoding='utf-8') as file:
+        json.dump(all_chunks, file, ensure_ascii=False, indent=2)
 
     print('Chunking raw data done')
     print(f'From {len(articles)} articles created {len(all_chunks)} chunks')

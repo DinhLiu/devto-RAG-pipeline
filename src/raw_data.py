@@ -1,14 +1,13 @@
 import requests
 import json
 from markdownify import markdownify as md
-import os
 import datetime
 import time
 
-RAW_DATA_FOLDER = '../raw_data'
+from src.config import RAW_DATA_DIR, RAW_DATA_FILE
+
 DEV_TO_API = "https://dev.to/api/articles"
-OUTPUT_PATH = f'{RAW_DATA_FOLDER}/raw_data.json'
-os.makedirs(RAW_DATA_FOLDER, exist_ok=True)
+RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 def convert_to_markdown(html_content):
     if not html_content:
@@ -101,8 +100,8 @@ def fetch_data(tag="dataengineering", limit=20):
         existing_ids = set()
         current_data = []
 
-        if os.path.exists(OUTPUT_PATH):
-            with open(OUTPUT_PATH, 'r', encoding='utf-8') as file:
+        if RAW_DATA_FILE.exists():
+            with open(RAW_DATA_FILE, 'r', encoding='utf-8') as file:
                 try:
                     current_data = json.load(file)
                     for item in current_data:
@@ -153,16 +152,16 @@ def fetch_data(tag="dataengineering", limit=20):
 
         print(f'Fetching done, writing {len(json_list)} articles to json...')
         
-        with open(OUTPUT_PATH, 'w', encoding='utf-8') as file:
+        with open(RAW_DATA_FILE, 'w', encoding='utf-8') as file:
             json.dump(json_list, file, ensure_ascii=False, indent=2)
-        print(f'Successfully wrote data to {OUTPUT_PATH}')
+        print(f'Successfully wrote data to {RAW_DATA_FILE}')
 
     except requests.exceptions.RequestException as e:
         print(f'Request error: {e}')
     except json.JSONDecodeError as e:
         print(f'Error: Failed to parse JSON response: {e}')
     except IOError as e:
-        print(f'Error: Failed to write to file {OUTPUT_PATH}: {e}')
+        print(f'Error: Failed to write to file {RAW_DATA_FILE}: {e}')
     except Exception as e:
         print(f'Unexpected error: {e}')
 

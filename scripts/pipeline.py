@@ -2,15 +2,27 @@
 Main controller script for the RAG pipeline.
 Orchestrates data fetching, processing, and vectorization.
 """
+import argparse
+from pathlib import Path
 import sys
-import os
 
-# Add src directory to path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+ROOT_DIR = Path(__file__).resolve().parent.parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from src.raw_data import fetch_data
 from src.process_data import process_chunks
 from src.vectorize_db import load_to_qdrant
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="Run the Dev.to RAG ingestion pipeline.")
+    parser.add_argument("--tag", default="ai", help="Dev.to tag to fetch articles from.")
+    parser.add_argument("--limit", type=int, default=20, help="Maximum number of articles to fetch.")
+    parser.add_argument("--skip-fetch", action="store_true", help="Skip fetching raw articles.")
+    parser.add_argument("--skip-process", action="store_true", help="Skip chunking raw articles.")
+    parser.add_argument("--skip-vectorize", action="store_true", help="Skip embedding and Qdrant upload.")
+    return parser.parse_args()
 
 
 def run_pipeline(tag="ai", limit=20, skip_fetch=False, skip_process=False, skip_vectorize=False):
@@ -60,9 +72,11 @@ def run_pipeline(tag="ai", limit=20, skip_fetch=False, skip_process=False, skip_
 
 
 if __name__ == "__main__":
-    # Run complete pipeline
-    run_pipeline(tag="programming", limit=400)
-    
-    # Or run only specific steps:
-    # run_pipeline(tag="python", limit=10, skip_fetch=True)  # Skip fetch, reprocess existing data
-    # run_pipeline(skip_fetch=True, skip_process=True)  # Only vectorize existing processed data
+    args = parse_args()
+    run_pipeline(
+        tag=args.tag,
+        limit=args.limit,
+        skip_fetch=args.skip_fetch,
+        skip_process=args.skip_process,
+        skip_vectorize=args.skip_vectorize,
+    )
