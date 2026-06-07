@@ -1,0 +1,8 @@
+requests
+markdownify
+langchain 
+langchain-text-splitters
+qdrant-client 
+sentence-transformers
+google.genai
+python-dotenv
